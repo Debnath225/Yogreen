@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200" role="img" aria-label="YoGreen">
+  <text x="20" y="130" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="120" letter-spacing="-5" fill="#0F1F18">yo<tspan fill="#0B8F5A">green</tspan></text>
+  <path d="M582 52c0-26 20-42 42-42 0 26-14 42-42 42z" fill="#0B8F5A"/>
+  <text x="24" y="172" font-family="Arial, sans-serif" font-weight="600" font-size="26" fill="#5B6B63">farm fresh • delivered in minutes</text>
+</svg>

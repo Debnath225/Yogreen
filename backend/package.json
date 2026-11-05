@@ -1,0 +1,19 @@
+{
+  "name": "yogreen-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "YoGreen customer/rider/admin API - Node.js REST + WebSocket with MongoDB",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\""
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "mongodb": "^7.8.0"
+  }
+}
