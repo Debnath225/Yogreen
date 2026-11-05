@@ -5,7 +5,7 @@
   "description": "YoGreen customer/rider/admin API - Node.js REST + WebSocket with MongoDB",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node src/index.js",

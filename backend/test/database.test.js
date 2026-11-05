@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import { MONGO_INDEXES } from '../src/db/mongo.js';
 import { loadConfig } from '../src/config.js';
 
@@ -20,15 +21,22 @@ test('MongoDB indexes cover the backend hot queries and uniqueness constraints',
 });
 
 test('production config requires MongoDB instead of silently choosing memory storage', () => {
-  const keys = ['NODE_ENV', 'MONGODB_ENABLED', 'MONGODB_URI', 'MONGODB_DB', 'OTP_SECRET', 'EXPOSE_DEV_OTP', 'SMS_PROVIDER', 'JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY'];
+  const keys = ['NODE_ENV', 'MONGODB_ENABLED', 'MONGODB_URI', 'MONGODB_DB', 'OTP_SECRET', 'EXPOSE_DEV_OTP', 'SMS_PROVIDER', 'SMS_WEBHOOK_URL', 'SMS_WEBHOOK_TOKEN', 'JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY'];
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
   Object.assign(process.env, {
     NODE_ENV: 'production',
     OTP_SECRET: 'test-secret-that-is-long-enough-for-production',
     EXPOSE_DEV_OTP: 'false',
     SMS_PROVIDER: 'webhook',
-    JWT_PRIVATE_KEY: 'test-private-key',
-    JWT_PUBLIC_KEY: 'test-public-key',
+    SMS_WEBHOOK_URL: 'https://sms.example.test/send',
+    SMS_WEBHOOK_TOKEN: 'test-webhook-token',
+    JWT_PRIVATE_KEY: privateKey,
+    JWT_PUBLIC_KEY: publicKey,
   });
   delete process.env.MONGODB_URI;
   try {
@@ -38,6 +46,23 @@ test('production config requires MongoDB instead of silently choosing memory sto
     process.env.MONGODB_ENABLED = 'false';
     assert.throws(() => loadConfig(), /MONGODB_ENABLED must be true in production/);
     process.env.MONGODB_ENABLED = 'true';
+    assert.equal(loadConfig().mongo.enabled, true);
+    process.env.SMS_WEBHOOK_URL = 'http://sms.example.test/send';
+    assert.throws(() => loadConfig(), /SMS_WEBHOOK_URL must use HTTPS/);
+    process.env.SMS_WEBHOOK_URL = 'https://sms.example.test/send';
+    process.env.SMS_WEBHOOK_TOKEN = '';
+    assert.throws(() => loadConfig(), /SMS_WEBHOOK_TOKEN is required/);
+    process.env.SMS_WEBHOOK_TOKEN = 'test-webhook-token';
+    process.env.JWT_PRIVATE_KEY = 'not a private key';
+    assert.throws(() => loadConfig(), /must be valid PEM-encoded RSA keys/);
+    process.env.JWT_PRIVATE_KEY = privateKey;
+    process.env.JWT_PUBLIC_KEY = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    }).publicKey;
+    assert.throws(() => loadConfig(), /JWT_PRIVATE_KEY and JWT_PUBLIC_KEY do not match/);
+    process.env.JWT_PUBLIC_KEY = publicKey;
     assert.equal(loadConfig().mongo.enabled, true);
   } finally {
     for (const key of keys) {

@@ -242,7 +242,9 @@ export function createApp(overrides = {}) {
     wsHub.stop();
     offOrderStatus();
     limiter.stop();
-    await new Promise((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); });
+    await new Promise((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
     if (store.close) await store.close();
   };
   return app;

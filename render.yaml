@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: yogreen-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_ENABLED
+        value: "true"
+      - key: MONGODB_DB
+        value: yogreen
+      - key: TRUST_PROXY
+        value: "true"
+      - key: EXPOSE_DEV_OTP
+        value: "false"
+      - key: SMS_PROVIDER
+        value: webhook
+      - key: PUSH_PROVIDER
+        value: expo
+      - key: MONGODB_URI
+        sync: false
+      - key: OTP_SECRET
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: SMS_WEBHOOK_URL
+        sync: false
+      - key: SMS_WEBHOOK_TOKEN
+        sync: false
+      - key: SUPERADMIN_PHONE
+        sync: false

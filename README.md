@@ -28,6 +28,24 @@ The backend must be running on port 4000 (`cd backend && npm run dev`). In Expo 
 Customer carts, addresses, orders, and account data are stored through the backend; configure `MONGODB_URI` for persistence across backend restarts. Auth tokens remain only in the device's secure Keychain/Keystore (not AsyncStorage). The app does not read or write the legacy local cart.
 Bootstrap admin: `SUPERADMIN_PHONE` in `.env` is created as `super_admin`. Log in with `client: "admin_app"`, then `POST /v1/admin/staff` to create riders/admins.
 
+## Deploy the backend
+
+Recommended starter setup: **Render Web Service + MongoDB Atlas**. Render supports this Node/Docker service and the app's realtime WebSocket endpoint; Atlas supplies the replica-set transactions required for checkout. A free Render web service is for testing only: it can spin down while idle, which interrupts realtime and delays requests. Choose a paid web-service instance for production.
+
+1. Push this repository to GitHub and create an Atlas production cluster. Create a least-privilege database user and allow the Render service's outbound IPs in Atlas Network Access (or use Atlas's documented network option for your plan). Copy the Atlas SRV URI; do not commit it.
+2. In Render, create a **Blueprint** from the repository root and select `render.yaml`. The service uses Render's Node runtime, sets `backend` as its root directory, runs `npm ci --omit=dev` and `npm start`, and uses `/health` for health checks. If configuring the web service manually instead, set **Root Directory** to `backend` before using those same commands; do not run `npm ci` from the repository root.
+3. Configure the Blueprint's unsynced environment variables in Render. Set `MONGODB_URI`, `OTP_SECRET` (generate with `openssl rand -base64 48`), matching `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` PEMs, `SMS_WEBHOOK_URL` (HTTPS) and `SMS_WEBHOOK_TOKEN`, and `SUPERADMIN_PHONE` in E.164 format. The SMS endpoint must accept an authenticated JSON `POST` with `{ "to": "<phone>", "message": "<text>" }`. Set `CORS_ORIGINS` in the Render dashboard to the exact browser origins if using the web client; it can be omitted for native mobile clients. Keep the generated JWT private key only in Render secrets.
+4. Generate an RS256 pair locally and paste each PEM into its matching Render secret (never paste them in chat or commit them):
+
+   ```sh
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+   openssl pkey -in jwt-private.pem -pubout -out jwt-public.pem
+   ```
+
+5. After deploy, confirm `https://<service>.onrender.com/health` returns `{"status":"ok",...}`. Set `EXPO_PUBLIC_API_URL=https://<service>.onrender.com` in both `mobile/.env` and `rider/.env`, then rebuild/restart the Expo apps. The clients derive their `wss://` realtime endpoint from this URL.
+
+Production startup refuses missing/invalid database, JWT, OTP, or SMS configuration. Never use development OTP exposure, console SMS, or the in-memory store in production. Render's deployment configuration is in [`render.yaml`](./render.yaml); local secrets remain in ignored `.env` files.
+
 ## What's in the customer app
 Welcome → Sign up / Login (mobile number only) → OTP (6-box input, SMS autofill, resend timer, shake on error) → 3-step Setup (profile, address, notifications + welcome bonus) → Main.
 - **Bottom tabs:** Home · YGC · Cart · Orders · Profile.  **Top tabs:** Home categories (dynamic), Orders (Active/Past), YGC (How to earn/History).

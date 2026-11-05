@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from 'node:crypto';
+import { createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
 
 const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
 const bool = (v, d) => (v === undefined || v === '' ? d : v === 'true');
@@ -58,7 +58,34 @@ export function loadConfig(overrides = {}) {
     if (!cfg.mongo.enabled) throw new Error('MONGODB_ENABLED must be true in production');
     if (!env.OTP_SECRET || env.OTP_SECRET.length < 32) throw new Error('OTP_SECRET (>=32 chars) is required in production');
     if (cfg.otp.exposeDev) throw new Error('EXPOSE_DEV_OTP must be false in production');
-    if (cfg.sms.provider === 'console') throw new Error('Configure a real SMS_PROVIDER in production');
+    let privateKey;
+    let publicKey;
+    try {
+      privateKey = createPrivateKey(cfg.jwt.privateKey);
+      publicKey = createPublicKey(cfg.jwt.publicKey);
+    } catch (error) {
+      throw new Error('JWT_PRIVATE_KEY and JWT_PUBLIC_KEY must be valid PEM-encoded RSA keys', { cause: error });
+    }
+    if (
+      privateKey.asymmetricKeyType !== 'rsa'
+      || publicKey.asymmetricKeyType !== 'rsa'
+      || (privateKey.asymmetricKeyDetails?.modulusLength ?? 0) < 2048
+      || (publicKey.asymmetricKeyDetails?.modulusLength ?? 0) < 2048
+    ) {
+      throw new Error('JWT_PRIVATE_KEY and JWT_PUBLIC_KEY must be RSA keys with at least 2048-bit modulus');
+    }
+    const derivedPublicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' });
+    const configuredPublicKey = publicKey.export({ format: 'der', type: 'spki' });
+    if (!derivedPublicKey.equals(configuredPublicKey)) throw new Error('JWT_PRIVATE_KEY and JWT_PUBLIC_KEY do not match');
+    if (cfg.sms.provider !== 'webhook') throw new Error('Configure SMS_PROVIDER=webhook in production');
+    let smsUrl;
+    try {
+      smsUrl = new URL(cfg.sms.url);
+    } catch (error) {
+      throw new Error('SMS_WEBHOOK_URL must be a valid HTTPS URL in production', { cause: error });
+    }
+    if (smsUrl.protocol !== 'https:') throw new Error('SMS_WEBHOOK_URL must use HTTPS in production');
+    if (!cfg.sms.token) throw new Error('SMS_WEBHOOK_TOKEN is required in production');
   }
   return cfg;
 }
