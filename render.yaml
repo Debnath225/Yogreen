@@ -2,9 +2,8 @@ services:
   - type: web
     name: yogreen-backend
     runtime: node
-    rootDir: backend
-    buildCommand: npm ci --omit=dev
-    startCommand: npm start
+    buildCommand: npm ci --omit=dev --prefix backend
+    startCommand: npm start --prefix backend
     region: singapore
     healthCheckPath: /health
     envVars:
